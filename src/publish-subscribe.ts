@@ -3,6 +3,7 @@ class EventEmitter {
   private list: object;
   public on: Function;
   public emit: Function;
+
   constructor(_list: object, _on: Function, _emit: Function) {
     this.list = _list;
     this.on = _on;
@@ -31,8 +32,7 @@ function _emit(event: string, ...args: any) {
     return false;
   }
   // 遍历 event 值对应的缓存列表，依次执行 fn
-  // @ts-ignore
-  fns.forEach((fn) => {
+  fns.forEach((fn: { apply: (arg0: any, arg1: any) => void }) => {
     fn.apply(_this, args);
   });
   return _this;

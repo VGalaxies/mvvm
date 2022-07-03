@@ -1,3 +1,1 @@
-import {emitter} from "./publish-subscribe";
-
-
+console.log("hello world");
