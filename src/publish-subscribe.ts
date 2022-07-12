@@ -42,10 +42,12 @@ export class EventEmitter {
   public once: Function = (event: string, fn: Function) => {
     // 先绑定，调用后删除
     let _this = this;
+
     function on() {
       _this.off(event, on);
       fn.apply(_this, arguments);
     }
+
     on.fn = fn; // for off
     _this.on(event, on);
     return _this;
