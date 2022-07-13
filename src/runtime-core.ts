@@ -1,4 +1,4 @@
-interface VNode {
+export interface VNode {
   tag: string;
   props: any;
   children: string | Array<VNode>;
@@ -25,7 +25,12 @@ export function mount(vnode: VNode, container: HTMLElement) {
   if (props) {
     for (let key in props) {
       const value = props[key];
-      el.setAttribute(key, value);
+      if (/^on/.test(key)) {
+        // convention
+        el.addEventListener(key.slice(2).toLowerCase(), value);
+      } else {
+        el.setAttribute(key, value);
+      }
     }
   }
 

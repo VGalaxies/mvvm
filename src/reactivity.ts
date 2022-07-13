@@ -53,7 +53,7 @@ export function reactive(target: object) {
   return new Proxy(target, handlers);
 }
 
-function ref(raw?: any) {
+export function ref(raw?: any) {
   const r = {
     get value() {
       track(r, "value");
@@ -67,7 +67,7 @@ function ref(raw?: any) {
   return r;
 }
 
-function effect(eff: Function) {
+export function effect(eff: Function) {
   activeEffect = eff;
   activeEffect();
   activeEffect = null;
