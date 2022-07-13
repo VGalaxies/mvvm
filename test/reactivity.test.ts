@@ -3,7 +3,14 @@ import { it, describe } from "mocha";
 const assert = require("chai").assert;
 const stdout = require("test-console").stdout;
 
-import { computed, effect, reactive } from "../src/reactivity";
+import {
+  computed,
+  effect,
+  reactive,
+  readonly,
+  shallowReactive,
+  shallowReadonly,
+} from "../src/reactivity";
 
 describe("reactivity-test", () => {
   it("computed", () => {
@@ -41,7 +48,7 @@ describe("reactivity-test", () => {
     data.text = "world"; // should not log "not"
 
     inspect.restore();
-    let expected: Array<String> = [`hello\n`, `not\n`];
+    let expected = [`hello\n`, `not\n`];
     assert.deepEqual(inspect.output, expected);
   });
 
@@ -63,7 +70,7 @@ describe("reactivity-test", () => {
     data.foo = false;
 
     inspect.restore();
-    let expected: Array<String> = [`outer\n`, `inner\n`, `outer\n`, `inner\n`];
+    let expected = [`outer\n`, `inner\n`, `outer\n`, `inner\n`];
     assert.deepEqual(inspect.output, expected);
   });
 
@@ -97,7 +104,160 @@ describe("reactivity-test", () => {
     data.text = "world";
 
     inspect.restore();
-    let expected: Array<String> = [`hello\n`, `world\n`, `bye\n`];
+    let expected = [`hello\n`, `world\n`, `bye\n`];
+    assert.deepEqual(inspect.output, expected);
+  });
+
+  it("reflect-necessity", () => {
+    const inspect = stdout.inspect();
+
+    const data: any = reactive({
+      foo: "hello",
+      get bar() {
+        return this.foo;
+      },
+    });
+    effect(() => console.log(data.bar));
+    data.foo = "world";
+
+    inspect.restore();
+    let expected = [`hello\n`, `world\n`];
+    assert.deepEqual(inspect.output, expected);
+  });
+
+  it("reflect-in-delete", () => {
+    const inspect = stdout.inspect();
+
+    const data: any = reactive({
+      foo: "hello",
+    });
+    effect(() => ("foo" in data ? console.log("yes") : console.log("no")));
+    data.foo = "world";
+    delete data.foo;
+
+    inspect.restore();
+    let expected = [`yes\n`, `yes\n`, `no\n`];
+    assert.deepEqual(inspect.output, expected);
+  });
+
+  it("reflect-for-in-delete", () => {
+    const inspect = stdout.inspect();
+
+    const data: any = reactive({
+      foo: "hello",
+    });
+    effect(() => {
+      for (const key in data) {
+        console.log(key);
+      }
+    });
+    data.bar = "good";
+    data.foo = "world"; // not trigger effect
+    delete data.foo;
+
+    inspect.restore();
+    let expected = [`foo\n`, `foo\n`, `bar\n`, `bar\n`];
+    assert.deepEqual(inspect.output, expected);
+  });
+
+  it("no-trigger-when-unchanged", () => {
+    const inspect = stdout.inspect();
+
+    const data: any = reactive({
+      foo: "foo",
+      bar: NaN,
+    });
+    effect(() => {
+      console.log(data.foo);
+    });
+    effect(() => {
+      console.log(String(data.bar));
+    });
+    data.foo = "foo"; // not trigger effect
+    data.bar = NaN; // not trigger effect
+
+    inspect.restore();
+    let expected = [`foo\n`, `NaN\n`];
+    assert.deepEqual(inspect.output, expected);
+  });
+
+  it("no-trigger-when-prototype-inheritance", () => {
+    const inspect = stdout.inspect();
+
+    const obj = {};
+    const proto = { foo: "hello" };
+    const child: any = reactive(obj);
+    const parent: any = reactive(proto);
+    Object.setPrototypeOf(child, parent);
+
+    effect(() => {
+      console.log(child.foo);
+    });
+    child.foo = "world"; // trigger once
+
+    inspect.restore();
+    let expected = [`hello\n`, `world\n`];
+    assert.deepEqual(inspect.output, expected);
+  });
+
+  it("shallow-reactive", () => {
+    const inspect = stdout.inspect();
+
+    const data: any = reactive({ foo: { bar: "hello" } });
+    effect(() => {
+      console.log(data.foo.bar);
+    });
+    data.foo.bar = "world"; // trigger effect
+
+    const shallow: any = shallowReactive({ foo: { bar: "hello" } });
+    effect(() => {
+      console.log(shallow.foo.bar);
+    });
+    data.foo.bar = "world"; // not trigger effect
+    data.foo = { bar: "world" }; // trigger effect
+
+    inspect.restore();
+    let expected = [`hello\n`, `world\n`, `hello\n`, `world\n`];
+    assert.deepEqual(inspect.output, expected);
+  });
+
+  it("readonly", () => {
+    const inspect = stdout.inspect();
+
+    const data: any = readonly({ foo: "hello" });
+    effect(() => {
+      "foo" in data ? console.log("yes") : console.log("no");
+    });
+    data.foo = "world";
+    delete data.foo;
+
+    inspect.restore();
+    let expected = [
+      `yes\n`,
+      `attr foo is read only\n`,
+      `attr foo is read only\n`,
+    ];
+    assert.deepEqual(inspect.output, expected);
+  });
+
+  it("read-readonly", () => {
+    const inspect = stdout.inspect();
+
+    const data: any = readonly({ foo: { bar: "hello" } });
+    data.foo.bar = "world";
+    delete data.foo.bar;
+
+    const shallow: any = shallowReadonly({ foo: { bar: "hello" } });
+    shallow.foo.bar = "world"; // no warning
+    delete shallow.foo.bar; // no warning
+    shallow.foo = "world";
+
+    inspect.restore();
+    let expected = [
+      `attr bar is read only\n`,
+      `attr bar is read only\n`,
+      `attr foo is read only\n`,
+    ];
     assert.deepEqual(inspect.output, expected);
   });
 });

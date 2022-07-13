@@ -13,9 +13,16 @@ interface EffectOptions {
 }
 
 let activeEffect: EffectFn = null;
-const effectStack: Array<EffectFn> = []; // for nested effect
+const effectStack: Array<EffectFn> = []; // for nested effects
 
 const targetMap = new WeakMap();
+const ITERATE_KEY = Symbol();
+
+enum TriggerType {
+  SET = "SET",
+  ADD = "ADD",
+  DELETE = "DELETE",
+}
 
 function track(target: object, key: PropertyKey) {
   if (!activeEffect) {
@@ -33,46 +40,123 @@ function track(target: object, key: PropertyKey) {
   activeEffect.deps.push(deps);
 }
 
-function trigger(target: object, key: PropertyKey) {
+function trigger(target: object, key: PropertyKey, type?: TriggerType) {
   const depsMap = targetMap.get(target);
   if (!depsMap) {
     return;
   }
-  let deps = depsMap.get(key);
-  if (deps) {
-    const effectsToRun = new Set();
-    deps.forEach((effectFn: EffectFn) => {
+
+  const effects = depsMap.get(key);
+
+  const effectsToRun = new Set();
+  effects &&
+    effects.forEach((effectFn: EffectFn) => {
       // get-and-set
       if (effectFn !== activeEffect) {
         effectsToRun.add(effectFn);
       }
     });
-    effectsToRun.forEach((effectFn: EffectFn) => {
-      // intro scheduler
-      if (effectFn.options.scheduler) {
-        effectFn.options.scheduler(effectFn);
-      } else {
-        effectFn();
-      }
-    });
+
+  if (type === TriggerType.ADD || type === TriggerType.DELETE) {
+    const iterateEffects = depsMap.get(ITERATE_KEY);
+    iterateEffects &&
+      iterateEffects.forEach((effectFn: EffectFn) => {
+        // get-and-set
+        if (effectFn !== activeEffect) {
+          effectsToRun.add(effectFn);
+        }
+      });
   }
+
+  effectsToRun.forEach((effectFn: EffectFn) => {
+    // intro scheduler
+    if (effectFn.options.scheduler) {
+      effectFn.options.scheduler(effectFn);
+    } else {
+      effectFn();
+    }
+  });
 }
 
 export function reactive(target: object) {
+  return createReactive(target);
+}
+
+export function shallowReactive(target: object) {
+  return createReactive(target, true);
+}
+
+export function readonly(target: object) {
+  return createReactive(target, false, true);
+}
+
+export function shallowReadonly(target: object) {
+  return createReactive(target, true, true);
+}
+
+function createReactive(
+  target: object,
+  isShallow: boolean = false,
+  isReadOnly: boolean = false
+) {
   const handlers = {
-    get(target: object, key: PropertyKey, receiver: any) {
-      let result = Reflect.get(target, key, receiver);
-      track(target, key);
-      return result;
+    get(target: object, key: PropertyKey, receiver: any): any {
+      // reactive(obj).raw = obj
+      if (key === "raw") {
+        return target;
+      }
+      if (!isReadOnly) {
+        track(target, key);
+      }
+      const res = Reflect.get(target, key, receiver);
+      if (isShallow) {
+        // shallow reactive
+        return res;
+      }
+      if (typeof res === "object" && res !== null) {
+        return isReadOnly ? readonly(res) : reactive(res); // default -> deep reactive
+      }
+      return res;
     },
     set(target: object, key: PropertyKey, value: any, receiver: any) {
-      // https://bobbyhadz.com/blog/typescript-no-index-signature-with-parameter-of-type
-      let oldValue = target[key as keyof typeof target];
-      let result = Reflect.set(target, key, value, receiver);
-      if (result && oldValue != value) {
-        trigger(target, key);
+      if (isReadOnly) {
+        console.log(`attr ${String(key)} is read only`);
+        return true;
       }
-      return result;
+      // https://bobbyhadz.com/blog/typescript-no-index-signature-with-parameter-of-type
+      const oldValue = target[key as keyof typeof target];
+      const type = Object.prototype.hasOwnProperty.call(target, key)
+        ? TriggerType.SET
+        : TriggerType.ADD;
+      const res = Reflect.set(target, key, value, receiver);
+      if (
+        target == receiver.raw && // prototype inheritance
+        oldValue !== value &&
+        (oldValue === oldValue || value === value) // NaN
+      ) {
+        trigger(target, key, type);
+      }
+      return res;
+    },
+    has(target: object, key: PropertyKey) {
+      track(target, key);
+      return Reflect.has(target, key);
+    },
+    ownKeys(target: object) {
+      track(target, ITERATE_KEY);
+      return Reflect.ownKeys(target);
+    },
+    deleteProperty(target: object, key: PropertyKey) {
+      if (isReadOnly) {
+        console.log(`attr ${String(key)} is read only`);
+        return true;
+      }
+      const hadKey = Object.prototype.hasOwnProperty.call(target, key);
+      const res = Reflect.deleteProperty(target, key);
+      if (res && hadKey) {
+        trigger(target, key, TriggerType.DELETE);
+      }
+      return res;
     },
   };
   return new Proxy(target, handlers);

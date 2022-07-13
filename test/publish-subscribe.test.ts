@@ -37,7 +37,7 @@ describe("publish-subscribe-test", () => {
 
     inspect.restore();
 
-    let expected: Array<String> = [
+    let expected = [
       `foo <- hello\n`,
       `bar <- hello\n`,
       `1 + 2 = 3\n`,
@@ -59,7 +59,7 @@ describe("publish-subscribe-test", () => {
 
     inspect.restore();
 
-    let expected: Array<String> = [`bar <- hello\n`];
+    let expected = [`bar <- hello\n`];
     assert.deepEqual(inspect.output, expected);
   });
 
@@ -75,7 +75,7 @@ describe("publish-subscribe-test", () => {
 
     inspect.restore();
 
-    let expected: Array<String> = [`bar <- hello\n`];
+    let expected = [`bar <- hello\n`];
     assert.deepEqual(inspect.output, expected);
   });
 
@@ -89,7 +89,7 @@ describe("publish-subscribe-test", () => {
 
     inspect.restore();
 
-    let expected: Array<String> = [];
+    let expected: Array<string> = [];
     assert.deepEqual(inspect.output, expected);
   });
 });
