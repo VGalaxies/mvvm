@@ -1,34 +1,59 @@
-const targetMap = new WeakMap(); // targetMap stores the effects that each object should re-run when it's updated
-let activeEffect: Function = null; // The active effect running
+type AnySupplier = () => any;
+
+interface EffectFn extends AnySupplier {
+  deps: Array<Set<EffectFn>>; // for clean up
+  options?: EffectOptions;
+}
+
+type EffectFnConsumer = (arg?: EffectFn) => void;
+
+interface EffectOptions {
+  scheduler?: EffectFnConsumer;
+  lazy?: boolean;
+}
+
+let activeEffect: EffectFn = null;
+const effectStack: Array<EffectFn> = []; // for nested effect
+
+const targetMap = new WeakMap();
 
 function track(target: object, key: PropertyKey) {
-  if (activeEffect) {
-    // <------ Check to see if we have an activeEffect
-    // We need to make sure this effect is being tracked.
-    let depsMap = targetMap.get(target); // Get the current depsMap for this target
-    if (!depsMap) {
-      // There is no map.
-      targetMap.set(target, (depsMap = new Map())); // Create one
-    }
-    let dep = depsMap.get(key); // Get the current dependencies (effects) that need to be run when this is set
-    if (!dep) {
-      // There is no dependencies (effects)
-      depsMap.set(key, (dep = new Set())); // Create a new Set
-    }
-    dep.add(activeEffect); // Add effect to dependency map
+  if (!activeEffect) {
+    return;
   }
+  let depsMap = targetMap.get(target);
+  if (!depsMap) {
+    targetMap.set(target, (depsMap = new Map()));
+  }
+  let deps = depsMap.get(key);
+  if (!deps) {
+    depsMap.set(key, (deps = new Set()));
+  }
+  deps.add(activeEffect);
+  activeEffect.deps.push(deps);
 }
 
 function trigger(target: object, key: PropertyKey) {
-  const depsMap = targetMap.get(target); // Does this object have any properties that have dependencies (effects)
+  const depsMap = targetMap.get(target);
   if (!depsMap) {
     return;
   }
-  let dep = depsMap.get(key); // If there are dependencies (effects) associated with this
-  if (dep) {
-    dep.forEach((effect: Function) => {
-      // run them all
-      effect();
+  let deps = depsMap.get(key);
+  if (deps) {
+    const effectsToRun = new Set();
+    deps.forEach((effectFn: EffectFn) => {
+      // get-and-set
+      if (effectFn !== activeEffect) {
+        effectsToRun.add(effectFn);
+      }
+    });
+    effectsToRun.forEach((effectFn: EffectFn) => {
+      // intro scheduler
+      if (effectFn.options.scheduler) {
+        effectFn.options.scheduler(effectFn);
+      } else {
+        effectFn();
+      }
     });
   }
 }
@@ -37,7 +62,7 @@ export function reactive(target: object) {
   const handlers = {
     get(target: object, key: PropertyKey, receiver: any) {
       let result = Reflect.get(target, key, receiver);
-      track(target, key); // If this reactive property (target) is GET inside then track the effect to rerun on SET
+      track(target, key);
       return result;
     },
     set(target: object, key: PropertyKey, value: any, receiver: any) {
@@ -45,7 +70,7 @@ export function reactive(target: object) {
       let oldValue = target[key as keyof typeof target];
       let result = Reflect.set(target, key, value, receiver);
       if (result && oldValue != value) {
-        trigger(target, key); // If this reactive property (target) has effects to rerun on SET, trigger them.
+        trigger(target, key);
       }
       return result;
     },
@@ -53,28 +78,72 @@ export function reactive(target: object) {
   return new Proxy(target, handlers);
 }
 
-export function ref(raw?: any) {
-  const r = {
-    get value() {
-      track(r, "value");
-      return raw;
+function cleanup(effectFn: EffectFn) {
+  for (let i = 0; i < effectFn.deps.length; ++i) {
+    const deps = effectFn.deps[i];
+    deps.delete(effectFn);
+  }
+  effectFn.deps.length = 0;
+}
+
+export function effect(fn: AnySupplier, options: EffectOptions = {}): EffectFn {
+  const effectFn: EffectFn = () => {
+    cleanup(effectFn);
+    activeEffect = effectFn;
+    effectStack.push(effectFn);
+    const res = fn();
+    effectStack.pop();
+    activeEffect = effectStack[effectStack.length - 1];
+    return res;
+  };
+  effectFn.options = options;
+  effectFn.deps = [];
+  if (!options.lazy) {
+    effectFn();
+  }
+  return effectFn;
+}
+
+export function computed(getter: AnySupplier) {
+  let value: any;
+  let dirty = true;
+  const effectFn = effect(getter, {
+    lazy: true,
+    scheduler() {
+      dirty = true;
+      trigger(obj, "value");
     },
-    set value(newVal) {
-      raw = newVal;
-      trigger(r, "value");
+  });
+  const obj = {
+    get value() {
+      if (dirty) {
+        value = effectFn();
+        dirty = false;
+      }
+      track(obj, "value");
+      return value;
     },
   };
-  return r;
+
+  return obj;
 }
 
-export function effect(eff: Function) {
-  activeEffect = eff;
-  activeEffect();
-  activeEffect = null;
-}
-
-export function computed(getter: Function) {
-  let result = ref();
-  effect(() => (result.value = getter()));
-  return result;
-}
+// export function ref(rawVal?: any) {
+//   const r = {
+//     get value() {
+//       track(r, "value");
+//       return rawVal;
+//     },
+//     set value(newVal) {
+//       rawVal = newVal;
+//       trigger(r, "value");
+//     },
+//   };
+//   return r;
+// }
+//
+// export function computed(getter: AnySupplier) {
+//   let result = ref();
+//   effect(() => (result.value = getter()));
+//   return result;
+// }
