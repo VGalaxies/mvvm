@@ -6,10 +6,13 @@ const stdout = require("test-console").stdout;
 import {
   computed,
   effect,
+  proxyRefs,
   reactive,
   readonly,
+  ref,
   shallowReactive,
   shallowReadonly,
+  toRefs,
 } from "../src/reactivity";
 
 describe("reactivity-test", () => {
@@ -240,7 +243,7 @@ describe("reactivity-test", () => {
     assert.deepEqual(inspect.output, expected);
   });
 
-  it("read-readonly", () => {
+  it("shallow-readonly", () => {
     const inspect = stdout.inspect();
 
     const data: any = readonly({ foo: { bar: "hello" } });
@@ -258,6 +261,52 @@ describe("reactivity-test", () => {
       `attr bar is read only\n`,
       `attr foo is read only\n`,
     ];
+    assert.deepEqual(inspect.output, expected);
+  });
+
+  it("ref", () => {
+    const inspect = stdout.inspect();
+
+    const refVal: any = ref("hello");
+    effect(() => {
+      console.log(refVal.value);
+    });
+    refVal.value = "world";
+
+    inspect.restore();
+    let expected = [`hello\n`, `world\n`];
+    assert.deepEqual(inspect.output, expected);
+  });
+
+  it("to-ref", () => {
+    const inspect = stdout.inspect();
+
+    const obj: any = reactive({ foo: "hello", bar: "world" });
+    const newObj = { ...toRefs(obj) };
+    effect(() => {
+      console.log(newObj.foo.value, newObj.bar.value);
+    });
+    obj.foo = "world";
+    obj.bar = "hello";
+
+    inspect.restore();
+    let expected = [`hello world\n`, `world world\n`, `world hello\n`];
+    assert.deepEqual(inspect.output, expected);
+  });
+
+  it("proxy-ref", () => {
+    const inspect = stdout.inspect();
+
+    const obj: any = reactive({ foo: "hello", bar: "world" });
+    const newObj: any = proxyRefs({ ...toRefs(obj) });
+    effect(() => {
+      console.log(newObj.foo, newObj.bar); // without .value
+    });
+    obj.foo = "world";
+    obj.bar = "hello";
+
+    inspect.restore();
+    let expected = [`hello world\n`, `world world\n`, `world hello\n`];
     assert.deepEqual(inspect.output, expected);
   });
 });

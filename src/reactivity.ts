@@ -58,6 +58,7 @@ function trigger(target: object, key: PropertyKey, type?: TriggerType) {
     });
 
   if (type === TriggerType.ADD || type === TriggerType.DELETE) {
+    // for ... in
     const iterateEffects = depsMap.get(ITERATE_KEY);
     iterateEffects &&
       iterateEffects.forEach((effectFn: EffectFn) => {
@@ -118,7 +119,7 @@ function createReactive(
       }
       return res;
     },
-    set(target: object, key: PropertyKey, value: any, receiver: any) {
+    set(target: object, key: PropertyKey, newValue: any, receiver: any) {
       if (isReadOnly) {
         console.log(`attr ${String(key)} is read only`);
         return true;
@@ -128,11 +129,11 @@ function createReactive(
       const type = Object.prototype.hasOwnProperty.call(target, key)
         ? TriggerType.SET
         : TriggerType.ADD;
-      const res = Reflect.set(target, key, value, receiver);
+      const res = Reflect.set(target, key, newValue, receiver);
       if (
         target == receiver.raw && // prototype inheritance
-        oldValue !== value &&
-        (oldValue === oldValue || value === value) // NaN
+        oldValue !== newValue &&
+        (oldValue === oldValue || newValue === newValue) // NaN
       ) {
         trigger(target, key, type);
       }
@@ -212,22 +213,53 @@ export function computed(getter: AnySupplier) {
   return obj;
 }
 
-// export function ref(rawVal?: any) {
-//   const r = {
-//     get value() {
-//       track(r, "value");
-//       return rawVal;
-//     },
-//     set value(newVal) {
-//       rawVal = newVal;
-//       trigger(r, "value");
-//     },
-//   };
-//   return r;
-// }
-//
-// export function computed(getter: AnySupplier) {
-//   let result = ref();
-//   effect(() => (result.value = getter()));
-//   return result;
-// }
+export function ref(val: any) {
+  const wrapper = {
+    value: val,
+  };
+  Object.defineProperty(wrapper, "__v_isRef", {
+    value: true,
+  });
+  return reactive(wrapper);
+}
+
+export function toRef(target: object, key: PropertyKey) {
+  const wrapper = {
+    get value() {
+      return target[key as keyof typeof target];
+    },
+    set value(val) {
+      target[key as keyof typeof target] = val;
+    },
+  };
+  Object.defineProperty(wrapper, "__v_isRef", {
+    value: true,
+  });
+  return wrapper;
+}
+
+export function toRefs(target: object) {
+  const ret: any = {};
+  for (const key in target) {
+    ret[key] = toRef(target, key);
+  }
+  return ret;
+}
+
+export function proxyRefs(target: object) {
+  const handlers = {
+    get(target: object, key: PropertyKey, receiver: any) {
+      const value = Reflect.get(target, key, receiver);
+      return value.__v_isRef ? value.value : value;
+    },
+    set(target: object, key: PropertyKey, newValue: any, receiver: any) {
+      const value: any = target[key as keyof typeof target];
+      if (value.__v_isRef) {
+        value.value = newValue;
+        return true;
+      }
+      return Reflect.set(target, key, newValue, receiver);
+    },
+  };
+  return new Proxy(target, handlers);
+}
