@@ -1,12 +1,20 @@
 import { it, describe } from "mocha";
 import { createHTMLRenderer } from "../src/runtime-core";
-import { dom } from "./init-test-runtime";
 import { effect, ref } from "../src/reactivity";
+import { JSDOM } from "jsdom";
 
 const assert = require("chai").assert;
 const stdout = require("test-console").stdout;
 
 describe("runtime-core-test", () => {
+  let dom = new JSDOM(`<!DOCTYPE html><div id="app"></div>`);
+  global.document = dom.window.document;
+
+  beforeEach(() => {
+    // reset
+    dom = new JSDOM(`<!DOCTYPE html><div id="app"></div>`);
+  });
+
   it("simple-render", () => {
     const app = dom.window.document.getElementById("app");
     const renderer = createHTMLRenderer();
@@ -50,11 +58,9 @@ describe("runtime-core-test", () => {
     const renderer = createHTMLRenderer();
     const prev = {
       type: "h1",
-      props: {}, // explicitly define here
     };
     const next = {
       type: "h1",
-      props: {}, // explicitly define here
       children: [{ type: "p" }, { type: "p" }],
     };
     renderer.render(prev, app);

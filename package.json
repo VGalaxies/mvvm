@@ -70,8 +70,8 @@
     "webpack-sources": "^3.2.3"
   },
   "scripts": {
-    "test": "mocha --reporter mochawesome --require ts-node/register --require test/init-test-runtime.ts test/*.test.ts",
-    "coverage": "nyc --reporter=html --reporter=text mocha --require ts-node/register --require test/init-test-runtime.ts test/*.test.ts",
+    "test": "mocha --reporter mochawesome --require ts-node/register test/*.test.ts",
+    "coverage": "nyc --reporter=html --reporter=text mocha --require ts-node/register test/*.test.ts",
     "watch": "webpack --watch",
     "start": "webpack-dev-server --open",
     "build": "webpack"
