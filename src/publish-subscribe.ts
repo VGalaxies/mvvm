@@ -1,6 +1,6 @@
 export class EventEmitter {
   // 缓存列表，存放 event 及 fn
-  private list: any = {};
+  private list: { [key: string]: Array<Fn> } = {};
 
   public on: Function = (event: string, fn: Fn) => {
     const _this = this;

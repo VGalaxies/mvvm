@@ -1,16 +1,23 @@
 interface HTMLVirtualNode {
   type: string;
   children?: Array<HTMLVirtualNode> | string;
-  props?: object;
-  el?: HTMLElementWithVEL;
+  props?: { [key: string]: any };
+  el?: HTMLElementDetail;
 }
 
 interface HTMLElementWithVNode extends HTMLElement {
   vnode?: HTMLVirtualNode;
 }
 
-interface HTMLElementWithVEL extends HTMLElement {
-  vei?: object;
+interface HTMLElementDetail extends HTMLElement {
+  [key: string]: any;
+
+  vei?: { [key: string]: EventInvoker };
+  attached?: number;
+}
+
+interface EventInvoker extends EventListener {
+  value?: Array<(arg: Event) => any> | ((arg: Event) => any);
 }
 
 interface HTMLRendererOptions {
@@ -18,7 +25,7 @@ interface HTMLRendererOptions {
   insert: (el: HTMLElement, parent: HTMLElement, anchor?: Node) => void;
   setElementText: (el: HTMLElement, text: string) => void;
   patchProps: (
-    el: HTMLElementWithVEL,
+    el: HTMLElementDetail,
     key: string,
     prevValue: any,
     nextValue: any
@@ -39,17 +46,23 @@ export function createHTMLRenderer() {
     patchProps(el, key, prevValue, nextValue) {
       if (/^on/.test(key)) {
         const invokers = el.vei || (el.vei = {});
-        let invoker: any = invokers[key as keyof typeof invokers];
-        const name = key.slice(2).toLowerCase();
+        let invoker = invokers[key];
+        const name = key.slice(2).toLowerCase() as keyof HTMLElementEventMap;
         if (nextValue) {
           if (!invoker) {
-            // @ts-ignore
             invoker = el.vei[key] = (e) => {
-              invoker.value(e);
+              if (Array.isArray(invoker.value)) {
+                // multiple handlers
+                invoker.value.forEach((fn) => fn(e));
+              } else {
+                invoker.value(e);
+              }
             };
             invoker.value = nextValue;
             el.addEventListener(name, invoker);
           } else {
+            // for efficiency
+            // avoid removeEventListener when updating
             invoker.value = nextValue;
           }
         } else if (invoker) {
@@ -62,13 +75,11 @@ export function createHTMLRenderer() {
       } else {
         if (key in el) {
           // set DOM properties first
-          const type = typeof el[key as keyof typeof el];
+          const type = typeof el[key];
           // handle button disabled
           if (type === "boolean" && nextValue === "") {
-            // @ts-ignore
             el[key] = true;
           } else {
-            // @ts-ignore
             el[key] = nextValue;
           }
         } else {
@@ -119,21 +130,13 @@ export function createRenderer(options: HTMLRendererOptions) {
     const oldProps = n1.props;
     const newProps = n2.props;
     for (const key in newProps) {
-      if (
-        newProps[key as keyof typeof newProps] !==
-        oldProps[key as keyof typeof oldProps]
-      ) {
-        patchProps(
-          el,
-          key,
-          oldProps[key as keyof typeof oldProps],
-          newProps[key as keyof typeof newProps]
-        );
+      if (newProps[key] !== oldProps[key]) {
+        patchProps(el, key, oldProps[key], newProps[key]);
       }
     }
     for (const key in oldProps) {
       if (!(key in newProps)) {
-        patchProps(el, key, oldProps[key as keyof typeof oldProps], null);
+        patchProps(el, key, oldProps[key], null);
       }
     }
 
@@ -160,7 +163,7 @@ export function createRenderer(options: HTMLRendererOptions) {
     // props
     if (vnode.props) {
       for (const key in vnode.props) {
-        patchProps(el, key, null, vnode.props[key as keyof typeof vnode.props]);
+        patchProps(el, key, null, vnode.props[key]);
       }
     }
 

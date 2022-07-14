@@ -15,7 +15,9 @@ interface EffectOptions {
 let activeEffect: EffectFn = null;
 const effectStack: Array<EffectFn> = []; // for nested effects
 
-const targetMap = new WeakMap();
+type TargetType = { [key: PropertyKey]: any };
+
+const targetMap = new WeakMap<TargetType, Map<PropertyKey, Set<EffectFn>>>();
 const ITERATE_KEY = Symbol();
 
 enum TriggerType {
@@ -24,23 +26,23 @@ enum TriggerType {
   DELETE = "DELETE",
 }
 
-function track(target: object, key: PropertyKey) {
+function track(target: TargetType, key: PropertyKey) {
   if (!activeEffect) {
     return;
   }
   let depsMap = targetMap.get(target);
   if (!depsMap) {
-    targetMap.set(target, (depsMap = new Map()));
+    targetMap.set(target, (depsMap = new Map<PropertyKey, Set<EffectFn>>()));
   }
   let deps = depsMap.get(key);
   if (!deps) {
-    depsMap.set(key, (deps = new Set()));
+    depsMap.set(key, (deps = new Set<EffectFn>()));
   }
   deps.add(activeEffect);
   activeEffect.deps.push(deps);
 }
 
-function trigger(target: object, key: PropertyKey, type?: TriggerType) {
+function trigger(target: TargetType, key: PropertyKey, type?: TriggerType) {
   const depsMap = targetMap.get(target);
   if (!depsMap) {
     return;
@@ -48,9 +50,9 @@ function trigger(target: object, key: PropertyKey, type?: TriggerType) {
 
   const effects = depsMap.get(key);
 
-  const effectsToRun = new Set();
+  const effectsToRun = new Set<EffectFn>();
   effects &&
-    effects.forEach((effectFn: EffectFn) => {
+    effects.forEach((effectFn) => {
       // get-and-set
       if (effectFn !== activeEffect) {
         effectsToRun.add(effectFn);
@@ -61,7 +63,7 @@ function trigger(target: object, key: PropertyKey, type?: TriggerType) {
     // for ... in
     const iterateEffects = depsMap.get(ITERATE_KEY);
     iterateEffects &&
-      iterateEffects.forEach((effectFn: EffectFn) => {
+      iterateEffects.forEach((effectFn) => {
         // get-and-set
         if (effectFn !== activeEffect) {
           effectsToRun.add(effectFn);
@@ -69,7 +71,7 @@ function trigger(target: object, key: PropertyKey, type?: TriggerType) {
       });
   }
 
-  effectsToRun.forEach((effectFn: EffectFn) => {
+  effectsToRun.forEach((effectFn) => {
     // intro scheduler
     if (effectFn.options.scheduler) {
       effectFn.options.scheduler(effectFn);
@@ -79,29 +81,29 @@ function trigger(target: object, key: PropertyKey, type?: TriggerType) {
   });
 }
 
-export function reactive(target: object) {
+export function reactive(target: TargetType) {
   return createReactive(target);
 }
 
-export function shallowReactive(target: object) {
+export function shallowReactive(target: TargetType) {
   return createReactive(target, true);
 }
 
-export function readonly(target: object) {
+export function readonly(target: TargetType) {
   return createReactive(target, false, true);
 }
 
-export function shallowReadonly(target: object) {
+export function shallowReadonly(target: TargetType) {
   return createReactive(target, true, true);
 }
 
 function createReactive(
-  target: object,
+  target: TargetType,
   isShallow: boolean = false,
   isReadOnly: boolean = false
 ) {
   const handlers = {
-    get(target: object, key: PropertyKey, receiver: any): any {
+    get(target: TargetType, key: PropertyKey, receiver: any): any {
       // reactive(obj).raw = obj
       if (key === "raw") {
         return target;
@@ -119,13 +121,12 @@ function createReactive(
       }
       return res;
     },
-    set(target: object, key: PropertyKey, newValue: any, receiver: any) {
+    set(target: TargetType, key: PropertyKey, newValue: any, receiver: any) {
       if (isReadOnly) {
         console.log(`attr ${String(key)} is read only`);
         return true;
       }
-      // https://bobbyhadz.com/blog/typescript-no-index-signature-with-parameter-of-type
-      const oldValue = target[key as keyof typeof target];
+      const oldValue = target[key];
       const type = Object.prototype.hasOwnProperty.call(target, key)
         ? TriggerType.SET
         : TriggerType.ADD;
@@ -139,15 +140,15 @@ function createReactive(
       }
       return res;
     },
-    has(target: object, key: PropertyKey) {
+    has(target: TargetType, key: PropertyKey) {
       track(target, key);
       return Reflect.has(target, key);
     },
-    ownKeys(target: object) {
+    ownKeys(target: TargetType) {
       track(target, ITERATE_KEY);
       return Reflect.ownKeys(target);
     },
-    deleteProperty(target: object, key: PropertyKey) {
+    deleteProperty(target: TargetType, key: PropertyKey) {
       if (isReadOnly) {
         console.log(`attr ${String(key)} is read only`);
         return true;
@@ -223,13 +224,13 @@ export function ref(val: any) {
   return reactive(wrapper);
 }
 
-export function toRef(target: object, key: PropertyKey) {
+export function toRef(target: TargetType, key: PropertyKey) {
   const wrapper = {
     get value() {
-      return target[key as keyof typeof target];
+      return target[key];
     },
     set value(val) {
-      target[key as keyof typeof target] = val;
+      target[key] = val;
     },
   };
   Object.defineProperty(wrapper, "__v_isRef", {
@@ -238,22 +239,22 @@ export function toRef(target: object, key: PropertyKey) {
   return wrapper;
 }
 
-export function toRefs(target: object) {
-  const ret: any = {};
+export function toRefs(target: TargetType) {
+  const ret: TargetType = {};
   for (const key in target) {
     ret[key] = toRef(target, key);
   }
   return ret;
 }
 
-export function proxyRefs(target: object) {
+export function proxyRefs(target: TargetType) {
   const handlers = {
-    get(target: object, key: PropertyKey, receiver: any) {
+    get(target: TargetType, key: PropertyKey, receiver: any) {
       const value = Reflect.get(target, key, receiver);
       return value.__v_isRef ? value.value : value;
     },
-    set(target: object, key: PropertyKey, newValue: any, receiver: any) {
-      const value: any = target[key as keyof typeof target];
+    set(target: TargetType, key: PropertyKey, newValue: any, receiver: any) {
+      const value: any = target[key];
       if (value.__v_isRef) {
         value.value = newValue;
         return true;
