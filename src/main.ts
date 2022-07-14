@@ -1,48 +1,76 @@
-import { h, mount, patch, VNode } from "./runtime-core";
-import { computed, reactive } from "./reactivity";
+import { createRenderer } from "./runtime-core";
 
-// const vdom1 = h("div", { class: "red" }, [h("span", null, "hello")]);
-// mount(vdom1, document.getElementById("app"));
-// const vdom2 = h("div", { class: "green" }, [h("span", null, "world")]);
-// patch(vdom1, vdom2);
-
-interface App {
-  data?: any;
-  render: () => VNode;
-}
-
-const app: App = {
-  data: reactive({
-    count: 0,
-  }),
-  render() {
-    return h(
-      "div",
-      {
-        // Uncaught SyntaxError: Function statements require a function name
-        onClick: function foo() {
-          app.data.count++;
-        },
-      },
-      String(app.data.count)
-    );
+const renderer = createRenderer({
+  createElement(tag) {
+    return document.createElement(tag);
   },
+  setElementText(el, text) {
+    el.textContent = text;
+  },
+  insert(el, parent, anchor) {
+    parent.insertBefore(el, anchor);
+  },
+  patchProps(el, key, prevValue, nextValue) {
+    if (key === "class") {
+      // for efficiency
+      // since `"class" in el` is false, and `setAttribute` is slower
+      el.className = nextValue || "";
+    } else {
+      if (key in el) {
+        // set DOM properties first
+        const type = typeof el[key as keyof typeof el];
+        // handle button disabled
+        if (type === "boolean" && nextValue === "") {
+          // @ts-ignore
+          el[key as keyof typeof el] = true;
+        } else {
+          // @ts-ignore
+          el[key as keyof typeof el] = nextValue;
+        }
+      } else {
+        el.setAttribute(key, nextValue);
+      }
+    }
+  },
+});
+
+const prev = {
+  type: "h1",
+  props: {
+    id: "good",
+  },
+  children: "hello",
 };
 
-function mountApp(component: App, container: HTMLElement) {
-  let isMounted = false;
-  let oldNode: VNode;
-  computed(() => {
-    if (!isMounted) {
-      oldNode = component.render();
-      mount(oldNode, container);
-      isMounted = true;
-    } else {
-      const newNode = component.render();
-      patch(oldNode, newNode);
-      oldNode = newNode;
-    }
-  });
-}
+const next = {
+  type: "h1",
+  props: {
+    id: "bad",
+  },
+  children: "hello",
+};
 
-mountApp(app, document.getElementById("app"));
+const container = document.getElementById("app");
+
+renderer.render(prev, container);
+renderer.patch(prev, next, container);
+
+// renderer.render(
+//   {
+//     type: "button",
+//     props: {
+//       disabled: "",
+//     },
+//   },
+//   container
+// );
+
+// renderer.render(
+//   {
+//     type: "button",
+//     props: {
+//       disabled: false,
+//     },
+//   },
+//   container
+// );

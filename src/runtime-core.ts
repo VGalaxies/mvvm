@@ -1,106 +1,126 @@
-export interface VNode {
-  tag: string;
-  props: any;
-  children: string | Array<VNode>;
+interface HTMLVirtualNode {
+  type: string;
+  children?: Array<HTMLVirtualNode> | string;
+  props?: object;
   el?: HTMLElement;
 }
 
-export function h(
-  tag: string,
-  props: any,
-  children: string | Array<VNode>
-): VNode {
-  return {
-    tag,
-    props,
-    children,
-  };
+interface HTMLElementWithNode extends HTMLElement {
+  vnode?: HTMLVirtualNode;
 }
 
-export function mount(vnode: VNode, container: HTMLElement) {
-  const { tag, props, children } = vnode;
-  const el = (vnode.el = document.createElement(tag));
+interface HTMLRendererOptions {
+  createElement: (arg: string) => HTMLElement;
+  insert: (el: HTMLElement, parent: HTMLElement, anchor?: Node) => void;
+  setElementText: (el: HTMLElement, text: string) => void;
+  patchProps: (
+    el: HTMLElement,
+    key: string,
+    prevValue: any,
+    nextValue: any
+  ) => void;
+}
 
-  // props
-  if (props) {
-    for (let key in props) {
-      const value = props[key];
-      if (/^on/.test(key)) {
-        // convention
-        el.addEventListener(key.slice(2).toLowerCase(), value);
+export function createRenderer(options: HTMLRendererOptions) {
+  const { createElement, insert, setElementText, patchProps } = options;
+
+  function patch(
+    n1: HTMLVirtualNode,
+    n2: HTMLVirtualNode,
+    container: HTMLElementWithNode
+  ) {
+    if (n1 && n1.type !== n2.type) {
+      unmount(n1);
+      n1 = null;
+    }
+    const { type } = n2;
+    if (typeof type === "string") {
+      // tag
+      if (!n1) {
+        mountElement(n2, container);
       } else {
-        el.setAttribute(key, value);
+        patchElement(n1, n2);
       }
+    } else if (typeof type === "object") {
+      // TODO -> component
     }
   }
 
-  // children
-  if (children) {
-    if (typeof children === "string") {
-      el.append(children);
-    } else {
-      children.forEach((child) => {
-        mount(child, el);
-      });
+  function unmount(vnode: HTMLVirtualNode) {
+    const el = vnode.el;
+    const parent = el.parentNode;
+    if (parent) {
+      parent.removeChild(el);
     }
   }
 
-  container.append(el);
-}
-
-export function patch(n1: VNode, n2: VNode) {
-  if (n1.tag === n2.tag) {
+  function patchElement(n1: HTMLVirtualNode, n2: HTMLVirtualNode) {
     const el = (n2.el = n1.el);
 
     // props
-    const oldProps = n1.props || {};
-    const newProps = n2.props || {};
-    for (let key in newProps) {
-      const oldValue = oldProps[key];
-      const newValue = newProps[key];
-      if (newValue !== oldValue) {
-        el.setAttribute(key, newValue);
+    const oldProps = n1.props;
+    const newProps = n2.props;
+    for (const key in newProps) {
+      if (
+        newProps[key as keyof typeof newProps] !==
+        oldProps[key as keyof typeof oldProps]
+      ) {
+        patchProps(
+          el,
+          key,
+          oldProps[key as keyof typeof oldProps],
+          newProps[key as keyof typeof newProps]
+        );
+      }
+    }
+    for (const key in oldProps) {
+      if (!(key in newProps)) {
+        patchProps(el, key, oldProps[key as keyof typeof oldProps], null);
       }
     }
 
-    for (let key in oldProps) {
-      if (!(key in newProps)) {
-        el.removeAttribute(key);
+    // TODO -> children
+  }
+
+  function render(vnode: HTMLVirtualNode, container: HTMLElementWithNode) {
+    if (vnode) {
+      patch(container.vnode, vnode, container);
+    } else {
+      if (container.vnode) {
+        unmount(container.vnode);
+      }
+    }
+    container.vnode = vnode;
+  }
+
+  function mountElement(
+    vnode: HTMLVirtualNode,
+    container: HTMLElementWithNode
+  ) {
+    const el = (vnode.el = createElement(vnode.type));
+
+    // props
+    if (vnode.props) {
+      for (const key in vnode.props) {
+        patchProps(el, key, null, vnode.props[key as keyof typeof vnode.props]);
       }
     }
 
     // children
-    const oldChildren = n1.children;
-    const newChildren = n2.children;
-
-    if (typeof newChildren === "string") {
-      if (typeof oldChildren === "string") {
-        if (oldChildren !== newChildren) {
-          // for efficiency
-          el.innerHTML = newChildren;
-        }
-      } else {
-        el.innerHTML = newChildren;
-      }
-    } else if (typeof oldChildren === "string" && Array.isArray(newChildren)) {
-      el.innerHTML = "";
-      newChildren.forEach((child) => mount(child, el));
-    } else if (Array.isArray(oldChildren) && Array.isArray(newChildren)) {
-      const minLength = Math.min(oldChildren.length, newChildren.length);
-      for (let i = 0; i < minLength; i++) {
-        patch(oldChildren[i], newChildren[i]); // recursion here
-      }
-      if (newChildren.length > oldChildren.length) {
-        newChildren.slice(oldChildren.length).forEach((child) => {
-          mount(child, el);
-        });
-      } else if (oldChildren.length > newChildren.length) {
-        oldChildren.slice(newChildren.length).forEach((child) => {
-          el.removeChild(child.el);
-        });
-      }
+    if (typeof vnode.children === "string") {
+      setElementText(el, vnode.children);
+      el.textContent = vnode.children;
+    } else if (Array.isArray(vnode.children)) {
+      vnode.children.forEach((child) => {
+        patch(null, child, el);
+      });
     }
-  } else {
-    // do nothing now
+
+    insert(el, container);
   }
+
+  return {
+    render,
+    patch,
+  };
 }
