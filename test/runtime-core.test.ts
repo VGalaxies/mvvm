@@ -1,12 +1,13 @@
 import { it, describe } from "mocha";
 import { createHTMLRenderer } from "../src/runtime-core";
 import { dom } from "./init-test-runtime";
+import { effect, ref } from "../src/reactivity";
 
 const assert = require("chai").assert;
 const stdout = require("test-console").stdout;
 
 describe("runtime-core-test", () => {
-  it("basic", () => {
+  it("simple-render", () => {
     const app = dom.window.document.getElementById("app");
     const renderer = createHTMLRenderer();
     const vnode = {
@@ -22,7 +23,7 @@ describe("runtime-core-test", () => {
     assert.deepEqual(child.textContent, "hello");
   });
 
-  it("patch", () => {
+  it("patch-props", () => {
     const app = dom.window.document.getElementById("app");
     const renderer = createHTMLRenderer();
     const prev = {
@@ -30,20 +31,37 @@ describe("runtime-core-test", () => {
       props: {
         id: "good",
       },
-      children: "hello",
     };
     const next = {
       type: "h1",
       props: {
         id: "bad",
       },
-      children: "hello",
     };
     renderer.render(prev, app);
     const child = dom.window.document.querySelector("h1");
     assert.deepEqual(child.getAttribute("id"), "good");
     renderer.patch(prev, next, app);
     assert.deepEqual(child.getAttribute("id"), "bad");
+  });
+
+  it("patch-children", () => {
+    const app = dom.window.document.getElementById("app");
+    const renderer = createHTMLRenderer();
+    const prev = {
+      type: "h1",
+      props: {}, // explicitly define here
+    };
+    const next = {
+      type: "h1",
+      props: {}, // explicitly define here
+      children: [{ type: "p" }, { type: "p" }],
+    };
+    renderer.render(prev, app);
+    const child = dom.window.document.querySelector("h1");
+    assert.deepEqual(child.children.length, 0);
+    renderer.patch(prev, next, app);
+    assert.deepEqual(child.children.length, 2);
   });
 
   it("button-disabled-true", () => {
@@ -114,6 +132,46 @@ describe("runtime-core-test", () => {
 
     inspect.restore();
     let expected = [`first click\n`, `second click\n`];
+    assert.deepEqual(inspect.output, expected);
+  });
+
+  // skip due to time inconsistency
+  it.skip("event-bubbling", () => {
+    const inspect = stdout.inspect();
+
+    const app = dom.window.document.getElementById("app");
+    const renderer = createHTMLRenderer();
+
+    const bol = ref(false);
+    effect(() => {
+      const vnode = {
+        type: "div",
+        props: bol.value
+          ? {
+              onClick: () => {
+                console.log("clicked");
+              },
+            }
+          : {},
+        children: [
+          {
+            type: "p",
+            props: {
+              onClick: () => {
+                bol.value = true;
+              },
+            },
+            children: "hello",
+          },
+        ],
+      };
+      renderer.render(vnode, app);
+    });
+    const node = dom.window.document.querySelector("p");
+    node.click();
+
+    inspect.restore();
+    let expected: Array<string> = [];
     assert.deepEqual(inspect.output, expected);
   });
 });

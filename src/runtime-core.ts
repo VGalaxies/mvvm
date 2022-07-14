@@ -13,11 +13,11 @@ interface HTMLElementDetail extends HTMLElement {
   [key: string]: any;
 
   vei?: { [key: string]: EventInvoker };
-  attached?: number;
 }
 
 interface EventInvoker extends EventListener {
   value?: Array<(arg: Event) => any> | ((arg: Event) => any);
+  attached?: number;
 }
 
 interface HTMLRendererOptions {
@@ -51,6 +51,9 @@ export function createHTMLRenderer() {
         if (nextValue) {
           if (!invoker) {
             invoker = el.vei[key] = (e) => {
+              if (e.timeStamp < invoker.attached) {
+                return;
+              }
               if (Array.isArray(invoker.value)) {
                 // multiple handlers
                 invoker.value.forEach((fn) => fn(e));
@@ -59,6 +62,7 @@ export function createHTMLRenderer() {
               }
             };
             invoker.value = nextValue;
+            invoker.attached = performance.now();
             el.addEventListener(name, invoker);
           } else {
             // for efficiency
@@ -123,6 +127,34 @@ export function createRenderer(options: HTMLRendererOptions) {
     }
   }
 
+  function patchChildren(
+    n1: HTMLVirtualNode,
+    n2: HTMLVirtualNode,
+    container: HTMLElementDetail
+  ) {
+    if (typeof n2.children === "string") {
+      if (Array.isArray(n1.children)) {
+        n1.children.forEach((c) => unmount(c));
+      }
+      setElementText(container, n2.children);
+    } else if (Array.isArray(n2.children)) {
+      if (Array.isArray(n1.children)) {
+        // TODO -> fast diff
+        n1.children.forEach((c) => unmount(c));
+        n2.children.forEach((c) => patch(null, c, container));
+      } else {
+        setElementText(container, "");
+        n2.children.forEach((c) => patch(null, c, container));
+      }
+    } else {
+      if (Array.isArray(n1.children)) {
+        n1.children.forEach((c) => unmount(c));
+      } else if (typeof n1.children === "string") {
+        setElementText(container, "");
+      }
+    }
+  }
+
   function patchElement(n1: HTMLVirtualNode, n2: HTMLVirtualNode) {
     const el = (n2.el = n1.el);
 
@@ -140,7 +172,8 @@ export function createRenderer(options: HTMLRendererOptions) {
       }
     }
 
-    // TODO -> children
+    // children
+    patchChildren(n1, n2, el);
   }
 
   function render(vnode: HTMLVirtualNode, container: HTMLElementWithVNode) {
