@@ -1,5 +1,5 @@
 import { it, describe } from "mocha";
-import { createHTMLRenderer } from "../src/runtime-core";
+import { createRenderer } from "../src/runtime-core";
 import { effect, ref } from "../src/reactivity";
 import { JSDOM } from "jsdom";
 
@@ -17,7 +17,7 @@ describe("runtime-core-test", () => {
 
   it("simple-render", () => {
     const app = dom.window.document.getElementById("app");
-    const renderer = createHTMLRenderer();
+    const renderer = createRenderer();
     const vnode = {
       type: "h1",
       props: {
@@ -33,7 +33,7 @@ describe("runtime-core-test", () => {
 
   it("patch-props", () => {
     const app = dom.window.document.getElementById("app");
-    const renderer = createHTMLRenderer();
+    const renderer = createRenderer();
     const prev = {
       type: "h1",
       props: {
@@ -55,7 +55,7 @@ describe("runtime-core-test", () => {
 
   it("patch-children", () => {
     const app = dom.window.document.getElementById("app");
-    const renderer = createHTMLRenderer();
+    const renderer = createRenderer();
     const prev = {
       type: "h1",
     };
@@ -72,7 +72,7 @@ describe("runtime-core-test", () => {
 
   it("button-disabled-true", () => {
     const app = dom.window.document.getElementById("app");
-    const renderer = createHTMLRenderer();
+    const renderer = createRenderer();
     const vnode = {
       type: "button",
       props: {
@@ -86,7 +86,7 @@ describe("runtime-core-test", () => {
 
   it("button-disabled-false", () => {
     const app = dom.window.document.getElementById("app");
-    const renderer = createHTMLRenderer();
+    const renderer = createRenderer();
     const vnode = {
       type: "button",
       props: {
@@ -102,7 +102,7 @@ describe("runtime-core-test", () => {
     const inspect = stdout.inspect();
 
     const app = dom.window.document.getElementById("app");
-    const renderer = createHTMLRenderer();
+    const renderer = createRenderer();
     const vnode = {
       type: "button",
       props: {
@@ -122,7 +122,7 @@ describe("runtime-core-test", () => {
     const inspect = stdout.inspect();
 
     const app = dom.window.document.getElementById("app");
-    const renderer = createHTMLRenderer();
+    const renderer = createRenderer();
     const vnode = {
       type: "button",
       props: {
@@ -146,7 +146,7 @@ describe("runtime-core-test", () => {
     const inspect = stdout.inspect();
 
     const app = dom.window.document.getElementById("app");
-    const renderer = createHTMLRenderer();
+    const renderer = createRenderer();
 
     const bol = ref(false);
     effect(() => {

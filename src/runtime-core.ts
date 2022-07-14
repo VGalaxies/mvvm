@@ -20,110 +20,70 @@ interface EventInvoker extends EventListener {
   attached?: number;
 }
 
-interface HTMLRendererOptions {
-  createElement: (arg: string) => HTMLElement;
-  insert: (el: HTMLElement, parent: HTMLElement, anchor?: Node) => void;
-  setElementText: (el: HTMLElement, text: string) => void;
-  patchProps: (
+export function createRenderer() {
+  function createElement(tag: string) {
+    return document.createElement(tag);
+  }
+
+  function setElementText(el: HTMLElement, text: string) {
+    el.textContent = text;
+  }
+
+  function insert(el: HTMLElement, parent: HTMLElement, anchor?: Node) {
+    parent.insertBefore(el, anchor);
+  }
+
+  function patchProps(
     el: HTMLElementDetail,
     key: string,
     prevValue: any,
     nextValue: any
-  ) => void;
-}
-
-export function createHTMLRenderer() {
-  return createRenderer({
-    createElement(tag) {
-      return document.createElement(tag);
-    },
-    setElementText(el, text) {
-      el.textContent = text;
-    },
-    insert(el, parent, anchor) {
-      parent.insertBefore(el, anchor);
-    },
-    patchProps(el, key, prevValue, nextValue) {
-      if (/^on/.test(key)) {
-        const invokers = el.vei || (el.vei = {});
-        let invoker = invokers[key];
-        const name = key.slice(2).toLowerCase() as keyof HTMLElementEventMap;
-        if (nextValue) {
-          if (!invoker) {
-            invoker = el.vei[key] = (e) => {
-              if (e.timeStamp < invoker.attached) {
-                return;
-              }
-              if (Array.isArray(invoker.value)) {
-                // multiple handlers
-                invoker.value.forEach((fn) => fn(e));
-              } else {
-                invoker.value(e);
-              }
-            };
-            invoker.value = nextValue;
-            invoker.attached = performance.now();
-            el.addEventListener(name, invoker);
-          } else {
-            // for efficiency
-            // avoid removeEventListener when updating
-            invoker.value = nextValue;
-          }
-        } else if (invoker) {
-          el.removeEventListener(name, invoker);
-        }
-      } else if (key === "class") {
-        // for efficiency
-        // since `"class" in el` is false, and `setAttribute` is slower
-        el.className = nextValue || "";
-      } else {
-        if (key in el) {
-          // set DOM properties first
-          const type = typeof el[key];
-          // handle button disabled
-          if (type === "boolean" && nextValue === "") {
-            el[key] = true;
-          } else {
-            el[key] = nextValue;
-          }
-        } else {
-          el.setAttribute(key, nextValue);
-        }
-      }
-    },
-  });
-}
-
-export function createRenderer(options: HTMLRendererOptions) {
-  const { createElement, insert, setElementText, patchProps } = options;
-
-  function patch(
-    n1: HTMLVirtualNode,
-    n2: HTMLVirtualNode,
-    container: HTMLElementWithVNode
   ) {
-    if (n1 && n1.type !== n2.type) {
-      unmount(n1);
-      n1 = null;
-    }
-    const { type } = n2;
-    if (typeof type === "string") {
-      // tag
-      if (!n1) {
-        mountElement(n2, container);
-      } else {
-        patchElement(n1, n2);
+    if (/^on/.test(key)) {
+      const invokers = el.vei || (el.vei = {});
+      let invoker = invokers[key];
+      const name = key.slice(2).toLowerCase() as keyof HTMLElementEventMap;
+      if (nextValue) {
+        if (!invoker) {
+          invoker = el.vei[key] = (e) => {
+            if (e.timeStamp < invoker.attached) {
+              return;
+            }
+            if (Array.isArray(invoker.value)) {
+              // multiple handlers
+              invoker.value.forEach((fn) => fn(e));
+            } else {
+              invoker.value(e);
+            }
+          };
+          invoker.value = nextValue;
+          invoker.attached = performance.now();
+          el.addEventListener(name, invoker);
+        } else {
+          // for efficiency
+          // avoid removeEventListener when updating
+          invoker.value = nextValue;
+        }
+      } else if (invoker) {
+        el.removeEventListener(name, invoker);
       }
-    } else if (typeof type === "object") {
-      // TODO -> component
-    }
-  }
-
-  function unmount(vnode: HTMLVirtualNode) {
-    const el = vnode.el;
-    const parent = el.parentNode;
-    if (parent) {
-      parent.removeChild(el);
+    } else if (key === "class") {
+      // for efficiency
+      // since `"class" in el` is false, and `setAttribute` is slower
+      el.className = nextValue || "";
+    } else {
+      if (key in el) {
+        // set DOM properties first
+        const type = typeof el[key];
+        // handle button disabled
+        if (type === "boolean" && nextValue === "") {
+          el[key] = true;
+        } else {
+          el[key] = nextValue;
+        }
+      } else {
+        el.setAttribute(key, nextValue);
+      }
     }
   }
 
@@ -176,6 +136,28 @@ export function createRenderer(options: HTMLRendererOptions) {
     patchChildren(n1, n2, el);
   }
 
+  function patch(
+    n1: HTMLVirtualNode,
+    n2: HTMLVirtualNode,
+    container: HTMLElementWithVNode
+  ) {
+    if (n1 && n1.type !== n2.type) {
+      unmount(n1);
+      n1 = null;
+    }
+    const { type } = n2;
+    if (typeof type === "string") {
+      // tag
+      if (!n1) {
+        mountElement(n2, container);
+      } else {
+        patchElement(n1, n2);
+      }
+    } else if (typeof type === "object") {
+      // TODO -> component
+    }
+  }
+
   function render(vnode: HTMLVirtualNode, container: HTMLElementWithVNode) {
     if (vnode) {
       patch(container.vnode, vnode, container);
@@ -210,6 +192,14 @@ export function createRenderer(options: HTMLRendererOptions) {
     }
 
     insert(el, container);
+  }
+
+  function unmount(vnode: HTMLVirtualNode) {
+    const el = vnode.el;
+    const parent = el.parentNode;
+    if (parent) {
+      parent.removeChild(el);
+    }
   }
 
   return {
