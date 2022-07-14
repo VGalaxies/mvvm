@@ -1,3 +1,5 @@
+import { PropertyMap } from "./common";
+
 type AnySupplier = () => any;
 
 interface EffectFn extends AnySupplier {
@@ -15,9 +17,7 @@ interface EffectOptions {
 let activeEffect: EffectFn = null;
 const effectStack: Array<EffectFn> = []; // for nested effects
 
-type TargetType = { [key: PropertyKey]: any };
-
-const targetMap = new WeakMap<TargetType, Map<PropertyKey, Set<EffectFn>>>();
+const targetMap = new WeakMap<PropertyMap, Map<PropertyKey, Set<EffectFn>>>();
 const ITERATE_KEY = Symbol();
 
 enum TriggerType {
@@ -26,7 +26,7 @@ enum TriggerType {
   DELETE = "DELETE",
 }
 
-function track(target: TargetType, key: PropertyKey) {
+function track(target: PropertyMap, key: PropertyKey) {
   if (!activeEffect) {
     return;
   }
@@ -42,7 +42,7 @@ function track(target: TargetType, key: PropertyKey) {
   activeEffect.deps.push(deps);
 }
 
-function trigger(target: TargetType, key: PropertyKey, type?: TriggerType) {
+function trigger(target: PropertyMap, key: PropertyKey, type?: TriggerType) {
   const depsMap = targetMap.get(target);
   if (!depsMap) {
     return;
@@ -81,29 +81,29 @@ function trigger(target: TargetType, key: PropertyKey, type?: TriggerType) {
   });
 }
 
-export function reactive(target: TargetType) {
+export function reactive(target: PropertyMap) {
   return createReactive(target);
 }
 
-export function shallowReactive(target: TargetType) {
+export function shallowReactive(target: PropertyMap) {
   return createReactive(target, true);
 }
 
-export function readonly(target: TargetType) {
+export function readonly(target: PropertyMap) {
   return createReactive(target, false, true);
 }
 
-export function shallowReadonly(target: TargetType) {
+export function shallowReadonly(target: PropertyMap) {
   return createReactive(target, true, true);
 }
 
 function createReactive(
-  target: TargetType,
+  target: PropertyMap,
   isShallow: boolean = false,
   isReadOnly: boolean = false
 ) {
   const handlers = {
-    get(target: TargetType, key: PropertyKey, receiver: any): any {
+    get(target: PropertyMap, key: PropertyKey, receiver: any): any {
       // reactive(obj).raw = obj
       if (key === "raw") {
         return target;
@@ -121,7 +121,7 @@ function createReactive(
       }
       return res;
     },
-    set(target: TargetType, key: PropertyKey, newValue: any, receiver: any) {
+    set(target: PropertyMap, key: PropertyKey, newValue: any, receiver: any) {
       if (isReadOnly) {
         console.log(`attr ${String(key)} is read only`);
         return true;
@@ -140,15 +140,15 @@ function createReactive(
       }
       return res;
     },
-    has(target: TargetType, key: PropertyKey) {
+    has(target: PropertyMap, key: PropertyKey) {
       track(target, key);
       return Reflect.has(target, key);
     },
-    ownKeys(target: TargetType) {
+    ownKeys(target: PropertyMap) {
       track(target, ITERATE_KEY);
       return Reflect.ownKeys(target);
     },
-    deleteProperty(target: TargetType, key: PropertyKey) {
+    deleteProperty(target: PropertyMap, key: PropertyKey) {
       if (isReadOnly) {
         console.log(`attr ${String(key)} is read only`);
         return true;
@@ -224,7 +224,7 @@ export function ref(val: any) {
   return reactive(wrapper);
 }
 
-export function toRef(target: TargetType, key: PropertyKey) {
+export function toRef(target: PropertyMap, key: PropertyKey) {
   const wrapper = {
     get value() {
       return target[key];
@@ -239,21 +239,21 @@ export function toRef(target: TargetType, key: PropertyKey) {
   return wrapper;
 }
 
-export function toRefs(target: TargetType) {
-  const ret: TargetType = {};
+export function toRefs(target: PropertyMap) {
+  const ret: PropertyMap = {};
   for (const key in target) {
     ret[key] = toRef(target, key);
   }
   return ret;
 }
 
-export function proxyRefs(target: TargetType) {
+export function proxyRefs(target: PropertyMap) {
   const handlers = {
-    get(target: TargetType, key: PropertyKey, receiver: any) {
+    get(target: PropertyMap, key: PropertyKey, receiver: any) {
       const value = Reflect.get(target, key, receiver);
       return value.__v_isRef ? value.value : value;
     },
-    set(target: TargetType, key: PropertyKey, newValue: any, receiver: any) {
+    set(target: PropertyMap, key: PropertyKey, newValue: any, receiver: any) {
       const value: any = target[key];
       if (value.__v_isRef) {
         value.value = newValue;

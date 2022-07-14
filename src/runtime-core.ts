@@ -1,7 +1,10 @@
-interface HTMLVirtualNode {
-  type: string;
+import { PropertyMap } from "./common";
+import { ComponentOptions } from "./components";
+
+export interface HTMLVirtualNode {
+  type: string | ComponentOptions;
   children?: Array<HTMLVirtualNode> | string;
-  props?: { [key: string]: any };
+  props?: PropertyMap;
   el?: HTMLElementDetail;
 }
 
@@ -139,7 +142,8 @@ export function createRenderer() {
   function patch(
     n1: HTMLVirtualNode,
     n2: HTMLVirtualNode,
-    container: HTMLElementWithVNode
+    container: HTMLElementWithVNode,
+    anchor?: Node
   ) {
     if (n1 && n1.type !== n2.type) {
       unmount(n1);
@@ -155,6 +159,10 @@ export function createRenderer() {
       }
     } else if (typeof type === "object") {
       // TODO -> component
+      if (!n1) {
+        mountComponent(n2, container, anchor);
+      } else {
+      }
     }
   }
 
@@ -169,11 +177,22 @@ export function createRenderer() {
     container.vnode = vnode;
   }
 
+  function mountComponent(
+    vnode: HTMLVirtualNode,
+    container: HTMLElementWithVNode,
+    anchor?: Node
+  ) {
+    const componentOptions = vnode.type as ComponentOptions;
+    const { render } = componentOptions;
+    const subTree = render();
+    patch(null, subTree, container, anchor);
+  }
+
   function mountElement(
     vnode: HTMLVirtualNode,
     container: HTMLElementWithVNode
   ) {
-    const el = (vnode.el = createElement(vnode.type));
+    const el = (vnode.el = createElement(vnode.type as string));
 
     // props
     if (vnode.props) {

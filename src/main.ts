@@ -1,7 +1,7 @@
-import { createHTMLRenderer } from "./runtime-core";
+import { createRenderer } from "./runtime-core";
 import { effect, ref } from "./reactivity";
 
-const renderer = createHTMLRenderer();
+const renderer = createRenderer();
 const container = document.getElementById("app");
 
 const bol = ref(false);
