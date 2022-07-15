@@ -13,9 +13,6 @@ const input: ComponentOptions = {
   render() {
     return {
       type: "div",
-      props: {
-        id: "target",
-      },
       children: [
         {
           type: "input",
@@ -27,9 +24,6 @@ const input: ComponentOptions = {
         },
         {
           type: "p",
-          props: {
-            id: "log",
-          },
           children: `${this.text}`,
         },
       ],
