@@ -2,19 +2,19 @@ import { PropertyMap } from "../type/global";
 import { track, trigger } from "./effect";
 import { ITERATE_KEY, TriggerType } from "./type";
 
-export function reactive(target: PropertyMap) {
+export function reactive(target: PropertyMap): PropertyMap {
   return createReactive(target);
 }
 
-export function shallowReactive(target: PropertyMap) {
+export function shallowReactive(target: PropertyMap): PropertyMap {
   return createReactive(target, true);
 }
 
-export function readonly(target: PropertyMap) {
+export function readonly(target: PropertyMap): PropertyMap {
   return createReactive(target, false, true);
 }
 
-export function shallowReadonly(target: PropertyMap) {
+export function shallowReadonly(target: PropertyMap): PropertyMap {
   return createReactive(target, true, true);
 }
 
@@ -22,7 +22,7 @@ function createReactive(
   target: PropertyMap,
   isShallow: boolean = false,
   isReadOnly: boolean = false
-) {
+): PropertyMap {
   const handlers = {
     get(target: PropertyMap, key: PropertyKey, receiver: any): any {
       // reactive(obj).raw = obj
@@ -42,7 +42,12 @@ function createReactive(
       }
       return res;
     },
-    set(target: PropertyMap, key: PropertyKey, newValue: any, receiver: any) {
+    set(
+      target: PropertyMap,
+      key: PropertyKey,
+      newValue: any,
+      receiver: any
+    ): boolean {
       if (isReadOnly) {
         console.log(`attr ${String(key)} is read only`);
         return true;
@@ -61,15 +66,15 @@ function createReactive(
       }
       return res;
     },
-    has(target: PropertyMap, key: PropertyKey) {
+    has(target: PropertyMap, key: PropertyKey): boolean {
       track(target, key);
       return Reflect.has(target, key);
     },
-    ownKeys(target: PropertyMap) {
+    ownKeys(target: PropertyMap): (string | symbol)[] {
       track(target, ITERATE_KEY);
       return Reflect.ownKeys(target);
     },
-    deleteProperty(target: PropertyMap, key: PropertyKey) {
+    deleteProperty(target: PropertyMap, key: PropertyKey): boolean {
       if (isReadOnly) {
         console.log(`attr ${String(key)} is read only`);
         return true;

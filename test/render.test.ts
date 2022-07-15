@@ -7,7 +7,7 @@ import { ref } from "../src/reactivity/ref";
 const assert = require("chai").assert;
 const stdout = require("test-console").stdout;
 
-describe("runtime-render-test", () => {
+describe("render-test", () => {
   let dom = new JSDOM(`<!DOCTYPE html><div id="app"></div>`);
   global.document = dom.window.document;
 

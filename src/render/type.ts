@@ -1,4 +1,4 @@
-import { ComponentOptions } from "./components";
+import { ComponentInstance, ComponentOptions } from "./components";
 import { PropertyMap } from "../type/global";
 
 export interface HTMLVirtualNode {
@@ -6,6 +6,7 @@ export interface HTMLVirtualNode {
   children?: Array<HTMLVirtualNode> | string;
   props?: PropertyMap;
   el?: HTMLElementDetail;
+  component?: ComponentInstance;
 }
 
 export interface HTMLElementWithVNode extends HTMLElement {

@@ -1,7 +1,7 @@
-import { AnySupplier } from "../type/global";
+import { AnySupplier, PropertyMap } from "../type/global";
 import { effect, track, trigger } from "./effect";
 
-export function computed(getter: AnySupplier) {
+export function computed(getter: AnySupplier): PropertyMap {
   let value: any;
   let dirty = true;
   const effectFn = effect(getter, {
@@ -11,7 +11,7 @@ export function computed(getter: AnySupplier) {
       trigger(obj, "value");
     },
   });
-  const obj = {
+  const obj: PropertyMap = {
     get value() {
       if (dirty) {
         value = effectFn();

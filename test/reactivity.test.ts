@@ -14,7 +14,7 @@ const stdout = require("test-console").stdout;
 
 describe("reactivity-test", () => {
   it("computed", () => {
-    const product: any = reactive({ price: 5, quantity: 2 });
+    const product = reactive({ price: 5, quantity: 2 });
 
     const salePrice = computed(() => {
       return product.price * 0.9;
@@ -39,7 +39,7 @@ describe("reactivity-test", () => {
   it("cleanup", () => {
     const inspect = stdout.inspect();
 
-    const data: any = reactive({ ok: true, text: "hello" });
+    const data = reactive({ ok: true, text: "hello" });
     effect(() => {
       console.log(data.ok ? data.text : "not");
     });
@@ -55,7 +55,7 @@ describe("reactivity-test", () => {
   it("nested-effect", () => {
     const inspect = stdout.inspect();
 
-    const data: any = reactive({ foo: true, bar: true });
+    const data = reactive({ foo: true, bar: true });
     let foo: any, bar: any;
 
     effect(() => {
@@ -75,7 +75,7 @@ describe("reactivity-test", () => {
   });
 
   it("get-then-set", () => {
-    const data: any = reactive({ foo: 0 });
+    const data = reactive({ foo: 0 });
 
     effect(() => {
       data.foo = data.foo + 1;
@@ -87,7 +87,7 @@ describe("reactivity-test", () => {
   it("scheduler", () => {
     const inspect = stdout.inspect();
 
-    const data: any = reactive({ text: "hello" });
+    const data = reactive({ text: "hello" });
 
     effect(
       () => {
@@ -111,7 +111,7 @@ describe("reactivity-test", () => {
   it("reflect-necessity", () => {
     const inspect = stdout.inspect();
 
-    const data: any = reactive({
+    const data = reactive({
       foo: "hello",
       get bar() {
         return this.foo;
@@ -128,7 +128,7 @@ describe("reactivity-test", () => {
   it("reflect-in-delete", () => {
     const inspect = stdout.inspect();
 
-    const data: any = reactive({
+    const data = reactive({
       foo: "hello",
     });
     effect(() => ("foo" in data ? console.log("yes") : console.log("no")));
@@ -143,7 +143,7 @@ describe("reactivity-test", () => {
   it("reflect-for-in-delete", () => {
     const inspect = stdout.inspect();
 
-    const data: any = reactive({
+    const data = reactive({
       foo: "hello",
     });
     effect(() => {
@@ -163,7 +163,7 @@ describe("reactivity-test", () => {
   it("no-trigger-when-unchanged", () => {
     const inspect = stdout.inspect();
 
-    const data: any = reactive({
+    const data = reactive({
       foo: "foo",
       bar: NaN,
     });
@@ -186,8 +186,8 @@ describe("reactivity-test", () => {
 
     const obj = {};
     const proto = { foo: "hello" };
-    const child: any = reactive(obj);
-    const parent: any = reactive(proto);
+    const child = reactive(obj);
+    const parent = reactive(proto);
     Object.setPrototypeOf(child, parent);
 
     effect(() => {
@@ -203,13 +203,13 @@ describe("reactivity-test", () => {
   it("shallow-reactive", () => {
     const inspect = stdout.inspect();
 
-    const data: any = reactive({ foo: { bar: "hello" } });
+    const data = reactive({ foo: { bar: "hello" } });
     effect(() => {
       console.log(data.foo.bar);
     });
     data.foo.bar = "world"; // trigger effect
 
-    const shallow: any = shallowReactive({ foo: { bar: "hello" } });
+    const shallow = shallowReactive({ foo: { bar: "hello" } });
     effect(() => {
       console.log(shallow.foo.bar);
     });
@@ -224,7 +224,7 @@ describe("reactivity-test", () => {
   it("readonly", () => {
     const inspect = stdout.inspect();
 
-    const data: any = readonly({ foo: "hello" });
+    const data = readonly({ foo: "hello" });
     effect(() => {
       "foo" in data ? console.log("yes") : console.log("no");
     });
@@ -243,11 +243,11 @@ describe("reactivity-test", () => {
   it("shallow-readonly", () => {
     const inspect = stdout.inspect();
 
-    const data: any = readonly({ foo: { bar: "hello" } });
+    const data = readonly({ foo: { bar: "hello" } });
     data.foo.bar = "world";
     delete data.foo.bar;
 
-    const shallow: any = shallowReadonly({ foo: { bar: "hello" } });
+    const shallow = shallowReadonly({ foo: { bar: "hello" } });
     shallow.foo.bar = "world"; // no warning
     delete shallow.foo.bar; // no warning
     shallow.foo = "world";
@@ -264,7 +264,7 @@ describe("reactivity-test", () => {
   it("ref", () => {
     const inspect = stdout.inspect();
 
-    const refVal: any = ref("hello");
+    const refVal = ref("hello");
     effect(() => {
       console.log(refVal.value);
     });
@@ -278,7 +278,7 @@ describe("reactivity-test", () => {
   it("to-ref", () => {
     const inspect = stdout.inspect();
 
-    const obj: any = reactive({ foo: "hello", bar: "world" });
+    const obj = reactive({ foo: "hello", bar: "world" });
     const newObj = { ...toRefs(obj) };
     effect(() => {
       console.log(newObj.foo.value, newObj.bar.value);
@@ -294,8 +294,8 @@ describe("reactivity-test", () => {
   it("proxy-ref", () => {
     const inspect = stdout.inspect();
 
-    const obj: any = reactive({ foo: "hello", bar: "world" });
-    const newObj: any = proxyRefs({ ...toRefs(obj) });
+    const obj = reactive({ foo: "hello", bar: "world" });
+    const newObj = proxyRefs({ ...toRefs(obj) });
     effect(() => {
       console.log(newObj.foo, newObj.bar); // without .value
     });

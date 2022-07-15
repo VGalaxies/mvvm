@@ -4,7 +4,7 @@ import {
   HTMLVirtualNode,
 } from "./type";
 import { mountElement, unmount } from "./mount";
-import { mountComponent } from "./components";
+import { mountComponent, patchComponent } from "./components";
 import { setElementText } from "./common";
 
 export function patchProps(
@@ -129,9 +129,11 @@ export function patch(
       patchElement(n1, n2);
     }
   } else if (typeof type === "object") {
+    // component
     if (!n1) {
       mountComponent(n2, container, anchor);
     } else {
+      patchComponent(n1, n2, anchor);
     }
   }
 }

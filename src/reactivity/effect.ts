@@ -1,7 +1,7 @@
 import { AnySupplier, PropertyMap } from "../type/global";
 import { ITERATE_KEY, TriggerType } from "./type";
 
-interface EffectFn extends AnySupplier {
+export interface EffectFn extends AnySupplier {
   deps: Array<Set<EffectFn>>; // for clean up
   options?: EffectOptions;
 }

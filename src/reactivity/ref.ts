@@ -1,8 +1,8 @@
 import { PropertyMap } from "../type/global";
 import { reactive } from "./index";
 
-export function ref(val: any) {
-  const wrapper = {
+export function ref(val: any): PropertyMap {
+  const wrapper: PropertyMap = {
     value: val,
   };
   Object.defineProperty(wrapper, "__v_isRef", {
@@ -11,8 +11,8 @@ export function ref(val: any) {
   return reactive(wrapper);
 }
 
-export function toRef(target: PropertyMap, key: PropertyKey) {
-  const wrapper = {
+export function toRef(target: PropertyMap, key: PropertyKey): PropertyMap {
+  const wrapper: PropertyMap = {
     get value() {
       return target[key];
     },
@@ -26,7 +26,7 @@ export function toRef(target: PropertyMap, key: PropertyKey) {
   return wrapper;
 }
 
-export function toRefs(target: PropertyMap) {
+export function toRefs(target: PropertyMap): PropertyMap {
   const ret: PropertyMap = {};
   for (const key in target) {
     ret[key] = toRef(target, key);
@@ -34,7 +34,7 @@ export function toRefs(target: PropertyMap) {
   return ret;
 }
 
-export function proxyRefs(target: PropertyMap) {
+export function proxyRefs(target: PropertyMap): PropertyMap {
   const handlers = {
     get(target: PropertyMap, key: PropertyKey, receiver: any) {
       const value = Reflect.get(target, key, receiver);
