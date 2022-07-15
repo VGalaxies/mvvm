@@ -1,5 +1,6 @@
-import { createRenderer } from "./runtime-core";
-import { effect, ref } from "./reactivity";
+import { createRenderer } from "./render";
+import { effect } from "./reactivity/effect";
+import { ref } from "./reactivity/ref";
 
 const renderer = createRenderer();
 const container = document.getElementById("app");

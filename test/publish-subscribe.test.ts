@@ -1,9 +1,8 @@
-import { it, describe } from "mocha";
+import { describe, it } from "mocha";
+import { EventEmitter } from "../src/utils/publish-subscribe";
 
 const assert = require("chai").assert;
 const stdout = require("test-console").stdout;
-
-import { EventEmitter } from "../src/publish-subscribe";
 
 describe("publish-subscribe-test", () => {
   function foo(content: string) {

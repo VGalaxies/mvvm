@@ -1,19 +1,16 @@
-import { it, describe } from "mocha";
+import { describe, it } from "mocha";
+import { effect } from "../src/reactivity/effect";
+import { proxyRefs, ref, toRefs } from "../src/reactivity/ref";
+import { computed } from "../src/reactivity/computed";
+import {
+  reactive,
+  readonly,
+  shallowReactive,
+  shallowReadonly,
+} from "../src/reactivity";
 
 const assert = require("chai").assert;
 const stdout = require("test-console").stdout;
-
-import {
-  computed,
-  effect,
-  proxyRefs,
-  reactive,
-  readonly,
-  ref,
-  shallowReactive,
-  shallowReadonly,
-  toRefs,
-} from "../src/reactivity";
 
 describe("reactivity-test", () => {
   it("computed", () => {

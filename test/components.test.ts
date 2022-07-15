@@ -1,7 +1,7 @@
-import { it, describe } from "mocha";
+import { describe, it } from "mocha";
 import { JSDOM } from "jsdom";
-import { createRenderer } from "../src/runtime-core";
-import { ComponentOptions } from "../src/components";
+import { createRenderer } from "../src/render";
+import { ComponentOptions } from "../src/render/components";
 
 const assert = require("chai").assert;
 const stdout = require("test-console").stdout;
