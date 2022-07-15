@@ -108,9 +108,9 @@ export function mountComponent(
     isMounted: false,
     subTree: null,
   };
-  const [props, attrs] = resolveProps(propsOption, vnode.props);
+  const [props] = resolveProps(propsOption, vnode.props);
   instance.props = shallowReactive(props);
-  const state = (instance.state = reactive(data ? data() : {}));
+  instance.state = reactive(data ? data() : {});
 
   vnode.component = instance;
 
