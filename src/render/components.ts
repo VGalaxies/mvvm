@@ -1,14 +1,28 @@
 import { HTMLElementWithVNode, HTMLVirtualNode } from "./type";
-import { PropertyMap, VoidSupplier } from "../type/global";
+import { PropertyMap, Supplier, VoidSupplier } from "../type/global";
 import { effect } from "../reactivity/effect";
 import { patch } from "./patch";
-import { reactive, shallowReactive } from "../reactivity";
+import { reactive, shallowReactive, shallowReadonly } from "../reactivity";
+
+type VirtualNodeSupplier = Supplier<HTMLVirtualNode>;
+type PropertyMapSupplier = Supplier<PropertyMap>;
+
+type EventEmitter = (event: string, ...args: any) => void;
+
+interface SetupContext {
+  attrs?: PropertyMap;
+  emit?: EventEmitter;
+}
 
 export interface ComponentOptions {
   name: string;
-  render: () => HTMLVirtualNode;
-  data?: () => PropertyMap;
+  render?: VirtualNodeSupplier;
+  data?: PropertyMapSupplier;
   props?: PropertyMap;
+  setup?: (
+    props: PropertyMap,
+    context: SetupContext
+  ) => VirtualNodeSupplier | PropertyMap;
 
   // hooks
   beforeCreate?: VoidSupplier;
@@ -30,11 +44,11 @@ function resolveProps(options: PropertyMap, propsData: PropertyMap) {
   const props: PropertyMap = {};
   const attrs: PropertyMap = {};
   for (const key in propsData) {
-    if (key in options) {
-      // defined in ComponentOptions.props
+    if ((options && key in options) || key.startsWith("on")) {
+      // defined in `ComponentOptions.props` or event handler
       props[key] = propsData[key];
     } else {
-      // not defined in ComponentOptions.props
+      // not defined in `ComponentOptions.props`
       attrs[key] = propsData[key];
     }
   }
@@ -87,11 +101,14 @@ export function mountComponent(
   container: HTMLElementWithVNode,
   anchor?: Node
 ) {
+  // fetch options
   const componentOptions = vnode.type as ComponentOptions;
+  let { render } = componentOptions;
   const {
-    render,
     data,
     props: propsOption,
+    setup,
+
     beforeCreate,
     created,
     beforeMount,
@@ -100,17 +117,50 @@ export function mountComponent(
     updated,
   } = componentOptions;
 
+  // beforeCreate
   beforeCreate && beforeCreate();
 
+  // create instance
   const instance: ComponentInstance = {
     state: {},
     props: {},
     isMounted: false,
     subTree: null,
   };
-  const [props] = resolveProps(propsOption, vnode.props);
-  instance.props = shallowReactive(props);
+
   instance.state = reactive(data ? data() : {});
+
+  const [props, attrs] = resolveProps(propsOption, vnode.props);
+  instance.props = shallowReactive(props);
+
+  // setup
+  function emit(event: string, ...args: any) {
+    // click -> onClick
+    const eventName = `on${event[0].toUpperCase() + event.slice(1)}`;
+    const handler = instance.props[eventName];
+    if (handler) {
+      handler(...args);
+    } else {
+      console.log(`${String(event)} not existed`);
+    }
+  }
+
+  const setupContext: SetupContext = {
+    attrs,
+    emit,
+  };
+  let setupState: PropertyMap = null;
+  if (setup) {
+    const setupResult = setup(shallowReadonly(instance.props), setupContext);
+    if (typeof setupResult === "function") {
+      if (render) {
+        console.error("setup return render function, ignore render options");
+      }
+      render = setupResult as VirtualNodeSupplier;
+    } else {
+      setupState = setupResult as PropertyMap;
+    }
+  }
 
   vnode.component = instance;
 
@@ -121,6 +171,8 @@ export function mountComponent(
         return state[key];
       } else if (key in props) {
         return props[key];
+      } else if (setupState && key in setupState) {
+        return setupState[key];
       } else {
         console.log(`${String(key)} not existed`);
       }
@@ -140,6 +192,8 @@ export function mountComponent(
           `attempt to mutate prop ${String(key)}, props are readonly`
         );
         return false;
+      } else if (setupState && key in setupState) {
+        setupState[key] = value;
       } else {
         console.log(`${String(key)} not existed`);
         return false;
