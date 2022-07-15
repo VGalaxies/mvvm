@@ -303,4 +303,84 @@ describe("components-test", () => {
     let expected = ["clicked\n"];
     assert.deepEqual(inspect.output, expected);
   });
+
+  it("click-event", () => {
+    const inspect = stdout.inspect();
+
+    const app = dom.window.document.getElementById("app");
+    const renderer = createRenderer();
+    const component: ComponentOptions = {
+      name: "demo",
+      // setup() {
+      //   return () => {
+      //     return {
+      //       type: "button",
+      //       props: {
+      //         onClick: () => console.log("clicked"),
+      //       },
+      //     };
+      //   };
+      // },
+      render() {
+        return {
+          type: "button",
+          props: {
+            onClick: () => console.log("clicked"),
+          },
+        };
+      },
+    };
+
+    const vnode = {
+      type: component,
+    };
+    renderer.render(vnode, app);
+    const child = dom.window.document.querySelector("button");
+    child.click();
+
+    inspect.restore();
+    let expected = [`clicked\n`];
+    assert.deepEqual(inspect.output, expected);
+  });
+
+  it("counter", () => {
+    const inspect = stdout.inspect();
+
+    const app = dom.window.document.getElementById("app");
+    const renderer = createRenderer();
+    const component: ComponentOptions = {
+      name: "demo",
+      data() {
+        return {
+          count: 0,
+        };
+      },
+      render() {
+        return {
+          type: "button",
+          props: {
+            onClick: () => {
+              this.count++;
+              console.log(`${this.count}`);
+            },
+          },
+          children: `${this.count}`,
+        };
+      },
+    };
+
+    const vnode = {
+      type: component,
+    };
+    renderer.render(vnode, app);
+    const child = dom.window.document.querySelector("button");
+    child.click();
+    assert.deepEqual(child.textContent, "1");
+    child.click();
+    assert.deepEqual(child.textContent, "2");
+
+    inspect.restore();
+    let expected = [`1\n`, `2\n`];
+    assert.deepEqual(inspect.output, expected);
+  });
 });

@@ -1,6 +1,6 @@
-import { createRenderer } from "./render";
-import { effect } from "./reactivity/effect";
-import { ref } from "./reactivity/ref";
+import { createRenderer } from "../src/render";
+import { effect } from "../src/reactivity/effect";
+import { ref } from "../src/reactivity/ref";
 
 const renderer = createRenderer();
 const container = document.getElementById("app");

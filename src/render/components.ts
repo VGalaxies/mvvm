@@ -117,7 +117,7 @@ export function mountComponent(
     updated,
   } = componentOptions;
 
-  // beforeCreate
+  // before create
   beforeCreate && beforeCreate();
 
   // create instance
@@ -201,8 +201,10 @@ export function mountComponent(
     },
   });
 
+  // after create
   created && created.call(renderContext);
 
+  // reactive
   effect(
     () => {
       const subTree = render.call(renderContext);
