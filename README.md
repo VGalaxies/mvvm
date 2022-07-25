@@ -511,3 +511,44 @@ const counter: ComponentOptions = {
     },
 };
 ```
+
+# report
+
+http://150.158.197.57/counter/index.html
+
+目录结构如下
+
+```
+ubuntu@VM-4-17-ubuntu:/var/www/mvvm$ tree -L 1
+.
+├── counter
+├── coverage
+└── test
+```
+
+配置 nginx
+
+```
+location /counter/ {
+    root /var/www/mvvm;
+}
+
+location /test/ {
+    root /var/www/mvvm;
+}
+
+location /coverage/ {
+    root /var/www/mvvm;
+}
+```
+
+那么访问 http://150.158.197.57/coverage/index.html，相当于获取 `/var/www/mvvm/coverage/index.html`
+
+修改 `index.html`，添加 bootstrap 组件库
+
+最小化只需
+
+- `bootstrap.min.css`
+- `bootstrap.bundle.min.js`
+
+从 https://www.bootcdn.cn/twitter-bootstrap/ 中获取
